@@ -7,35 +7,46 @@ import cors from "cors";
 const app = express();
 app.use(cors());
 
-// cria servidor HTTP padrão
 const server = http.createServer(app);
 
-// instancia do socket.io com CORS liberado para o frontend
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // endereço do frontend React
+    origin: "http://localhost:5173", 
     methods: ["GET", "POST"],
   },
 });
 
-// eventos principais do socket
+
+const users = new Map();
+
 io.on("connection", (socket) => {
   console.log("🟢 Usuário conectado:", socket.id);
 
-  // recebe mensagem do cliente
+  socket.on("user_joined", (username) => {
+    users.set(socket.id, username);
+    console.log(`👋 ${username} entrou no chat`);
+    io.emit("user_joined", username);
+  });
+
+
   socket.on("send_message", (data) => {
     console.log("💬 Mensagem recebida:", data);
-    // envia para todos os clientes conectados
     io.emit("receive_message", data);
   });
 
-  // quando o usuário desconectar
   socket.on("disconnect", () => {
-    console.log("🔴 Usuário desconectado:", socket.id);
+    const username = users.get(socket.id);
+    users.delete(socket.id);
+    if (username) {
+      console.log(`🚪 ${username} saiu do chat`);
+      io.emit("user_left", username);
+    } else {
+      console.log("🔴 Usuário desconectado (sem nome):", socket.id);
+    }
   });
 });
 
-// inicia o servidor
+
 server.listen(3001, () => {
   console.log("✅ Servidor WebSocket rodando em http://localhost:3001");
 });
